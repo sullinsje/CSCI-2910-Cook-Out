@@ -62,5 +62,49 @@ async def lookup(ctx, *, item_name: str):
     except requests.RequestException as e:
         await ctx.send(f"Failed to get Item(s):\n{e}")
 
+#--- Task Manager Commands---
+@bot.command(name="assign")
+async def assign_task(ctx, task_name: str, employee_id: int):
+    """Assign a new task to an employee. Usage: `!assign "Task Name" 1`"""
+    try:
+        response = requests.post(
+            "http://localhost:8000/tasks/",
+            json={"name": task_name, "employee_id": employee_id}
+        )
+        response.raise_for_status()
+        await ctx.send(f" Task assigned to employee ID `{employee_id}`: *{task_name}*")
+    except requests.RequestException as e:
+        await ctx.send(f" Failed to assign task: `{e}`")
+
+@bot.command(name="tasks")
+async def list_tasks(ctx, employee_id: int = None):
+    """List all tasks or filter by employee. Usage: `!tasks` or `!tasks 1`"""
+    try:
+        params = {"employee_id": employee_id} if employee_id else None
+        response = requests.get("http://localhost:8000/tasks/", params=params)
+        response.raise_for_status()
+        tasks = response.json()
+
+        if not tasks:
+            await ctx.send("No tasks found.")
+        else:
+            task_list = "\n".join(
+                f"**ID:** {t['id']} | **Task:** {t['name']} | **Assigned to:** {t['employee_id']}"
+                for t in tasks
+            )
+            await ctx.send(f" **Tasks:**\n{task_list}")
+    except requests.RequestException as e:
+        await ctx.send(f" Failed to fetch tasks: `{e}`")
+
+@bot.command(name="complete")
+async def complete_task(ctx, task_id: int):
+    """Mark a task as complete (deletes it). Usage: `!complete 1`"""
+    try:
+        response = requests.delete(f"http://localhost:8000/tasks/{task_id}")
+        response.raise_for_status()
+        await ctx.send(f" Task ID `{task_id}` marked as complete.")
+    except requests.RequestException as e:
+        await ctx.send(f" Failed to complete task: `{e}`")
+
 TOKEN = ''
 bot.run(TOKEN)
