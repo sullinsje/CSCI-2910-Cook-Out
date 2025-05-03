@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
-from employee import EmployeeModel
-from item import ItemModel
-from task import TaskModel
+from employee import EmployeeModel, EmployeeUpdate
+from item import ItemModel, ItemUpdate
+from task import TaskModel, TaskUpdate
 from data_models import Base, Employee, Item, Task
 from typing import List
 
@@ -15,6 +15,27 @@ session_factory = sessionmaker(bind=engine)
 session = session_factory()
 
 app = FastAPI()
+
+#region NOTES
+# When you want to update an object's field, you must make an [Object]Update object         
+# and fill it with only the desired fields to change.  
+
+# When making a DELETE request, simply just enter the endpoint with the object ID
+
+# When you want to make a PUT request, be sure to send an entire object to replace the one at the specified ID
+
+# Same goes for a POST, just send in a fully created object
+
+# We will need to import the Pydantic models into the Discord bot and use those when making requests
+
+# When you send these objects into the request, copy this format:
+#       emp = EmployeeModel(id=1, name="Alex John", availability="10:00 - 18:00")
+#       requests.post(f"{base_url}/employees/", emp.model_dump_json())
+#                                               ^ this is important ^
+
+# You can always check out client.py to see how a request should be made
+
+#endregion
 
 #region Employee endpoints
 
@@ -79,33 +100,41 @@ async def update_employee(id: int, employee: EmployeeModel):
     return db_employee
 
 #delete_employee,               endpoint:   /employees/{id}
-@app.put("/employees/{id}", response_model=EmployeeModel)
+@app.delete("/employees/{id}", response_model=EmployeeModel)
 async def delete_employee(id: int):
     try:
         db_employee = session.query(Employee).filter(Employee.id == id).one()
-        db_employee_tasks = session.query(Task).filter(Task.employee_id == id).one()
     except:
         raise HTTPException(404, "Item not found")
     
     try:
+        session.query(Task).filter(Task.employee_id == id).update(
+            {Task.employee_id: None}, synchronize_session=False
+        )
         session.delete(db_employee)
-        session.delete(db_employee_tasks)
         session.commit()
     except:
         raise HTTPException(500, "Internal Server Error")
     
     return db_employee
 
-#patch_employee_name,           endpoint:   /employees/{id}
-@app.put("/employees/{id}", response_model=EmployeeModel)
-async def patch_employee_name(id: int, name: str):
+#############################################################################################
+# When you want to update an object's field, you must make an [Object]Update object         #
+# and fill it with only the desired fields to change.                                       #
+#############################################################################################
+#patch_employee,           endpoint:   /employees/{id}
+@app.patch("/employees/{id}", response_model=EmployeeModel)
+async def patch_employee(id: int, updates: EmployeeUpdate):
     try:
         db_employee = session.query(Employee).filter(Employee.id == id).one()
     except:
         raise HTTPException(404, "Item not found")
 
-    db_employee.name = name
+    update_data = updates.model_dump(exclude_unset=True)
 
+    for field, value in update_data.items():
+        setattr(db_employee, field, value)
+        
     try:
         session.commit()
         session.refresh(db_employee)
@@ -114,23 +143,6 @@ async def patch_employee_name(id: int, name: str):
     
     return db_employee
 
-#patch_employee_availability    endpoint:   /employees/{id}
-@app.put("/employees/{id}", response_model=EmployeeModel)
-async def patch_employee_availability(id: int, availability: str):
-    try:
-        db_employee = session.query(Employee).filter(Employee.id == id).one()
-    except:
-        raise HTTPException(404, "Item not found")
-
-    db_employee.availability = availability
-    
-    try:
-        session.commit()
-        session.refresh(db_employee)
-    except:
-        raise HTTPException(500, "Internal Server Error")
-    
-    return db_employee
 
 #endregion
 
@@ -192,7 +204,7 @@ async def update_item(id: int, item: ItemModel):
     
     return db_item
 
-@app.put("/items/{id}", response_model=ItemModel)
+@app.delete("/items/{id}", response_model=ItemModel)
 async def delete_item(id: int):
     try:
         db_item = session.query(Item).filter(Item.id == id).one()
@@ -207,49 +219,22 @@ async def delete_item(id: int):
     
     return db_item
 
-@app.put("/items/{id}", response_model=ItemModel)
-async def patch_item_name(id: int, name: str):
+#############################################################################################
+# When you want to update an object's field, you must make an [Object]Update object         #
+# and fill it with only the desired fields to change.                                       #
+#############################################################################################
+@app.patch("/items/{id}", response_model=ItemModel)
+async def patch_item(id: int, updates: ItemUpdate):
     try:
         db_item = session.query(Item).filter(Item.id == id).one()
     except:
         raise HTTPException(404, "Item not found")
 
-    db_item.name = name
+    update_data = updates.model_dump(exclude_unset=True)
 
-    try:
-        session.commit()
-        session.refresh(db_item)
-    except:
-        raise HTTPException(500, "Internal Server Error")
-    
-    return db_item
-
-@app.put("/items/{id}", response_model=ItemModel)
-async def patch_item_count(id: int, count: str):
-    try:
-        db_item = session.query(Item).filter(Item.id == id).one()
-    except:
-        raise HTTPException(404, "Item not found")
-
-    db_item.count = count
-    
-    try:
-        session.commit()
-        session.refresh(db_item)
-    except:
-        raise HTTPException(500, "Internal Server Error")
-    
-    return db_item
-
-@app.put("/items/{id}", response_model=ItemModel)
-async def patch_item_sold_since_restock(id: int, sold_since_restock: str):
-    try:
-        db_item = session.query(Item).filter(Item.id == id).one()
-    except:
-        raise HTTPException(404, "Item not found")
-
-    db_item.sold_since_restock = sold_since_restock
-    
+    for field, value in update_data.items():
+        setattr(db_item, field, value)
+        
     try:
         session.commit()
         session.refresh(db_item)
@@ -316,7 +301,7 @@ async def update_task(id: int, task: TaskModel):
     
     return db_task
 
-@app.put("/tasks/{id}", response_model=TaskModel)
+@app.delete("/tasks/{id}", response_model=TaskModel)
 async def delete_task(id: int):
     try:
         db_task = session.query(Task).filter(Task.id == id).one()
@@ -331,32 +316,22 @@ async def delete_task(id: int):
     
     return db_task
 
-@app.put("/tasks/{id}", response_model=TaskModel)
-async def patch_task_name(id: int, name: str):
+#############################################################################################
+# When you want to update an object's field, you must make an [Object]Update object         #
+# and fill it with only the desired fields to change.                                       #
+#############################################################################################
+@app.patch("/tasks/{id}", response_model=TaskModel)
+async def patch_employee(id: int, updates: TaskUpdate):
     try:
         db_task = session.query(Task).filter(Task.id == id).one()
     except:
         raise HTTPException(404, "Item not found")
 
-    db_task.name = name
+    update_data = updates.model_dump(exclude_unset=True)
 
-    try:
-        session.commit()
-        session.refresh(db_task)
-    except:
-        raise HTTPException(500, "Internal Server Error")
-    
-    return db_task
-
-@app.put("/tasks/{id}", response_model=TaskModel)
-async def patch_task_employee_id(id: int, employee_id: int):
-    try:
-        db_task = session.query(Task).filter(Task.id == id).one()
-    except:
-        raise HTTPException(404, "Item not found")
-
-    db_task.employee_id = employee_id
-    
+    for field, value in update_data.items():
+        setattr(db_task, field, value)
+        
     try:
         session.commit()
         session.refresh(db_task)

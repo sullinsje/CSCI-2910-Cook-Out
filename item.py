@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class ItemModel(BaseModel):
     id: int
@@ -8,3 +9,9 @@ class ItemModel(BaseModel):
 
     class Config:
         orm_mode = True
+
+class ItemUpdate(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    count: Optional[int] = None
+    sold_since_restock: Optional[int] = None

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class EmployeeModel(BaseModel):
     id: int
@@ -7,3 +8,8 @@ class EmployeeModel(BaseModel):
 
     class Config:
         orm_mode = True
+
+class EmployeeUpdate(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    availability: Optional[str] = None
