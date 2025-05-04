@@ -252,7 +252,8 @@ async def get_tasks(name: str = Query(default=None, alias="name")):
     try:
         if name:
             task = session.query(Task).filter(Task.name == name).all()
-        else:task = session.query(Task).all()
+        else:
+            task = session.query(Task).all()
     except:
         raise HTTPException(404, "Item not found")
     

@@ -12,7 +12,7 @@ def get_tests():
     print(requests.get(f"{base_url}/items/", params={'name': 'Apple iPhone 14'}).content)
     print(requests.get(f"{base_url}/items/{1}").content)
 
-    print(requests.get(f"{base_url}/tasks/", params={'name': 'Stock new phone models'}).content)
+    print(requests.get(f"{base_url}/tasks/").content)
     print(requests.get(f"{base_url}/tasks/{1}").content)
 
 def update_emp_tests():
@@ -32,7 +32,7 @@ def update_task_tests():
     task = TaskModel(id=1, name="clean", employee_id=1)
     task2 = TaskUpdate(employee_id=2)
     print(requests.patch(f"{base_url}/tasks/{1}", task2.model_dump_json(exclude_unset=True)))
-    print(requests.put(f"{base_url}/tasks/{2}", task.model_dump_json()))
+    print(requests.put(f"{base_url}/tasks/{12}", task.model_dump_json()))
 
 def delete_tests():
     print(requests.delete(f"{base_url}/tasks/{14}"))
@@ -49,6 +49,7 @@ def post_tests():
         task = TaskModel(id=1, name="clean", employee_id=1)
         print(requests.post(f"{base_url}/tasks/", task.model_dump_json()))
 
-
-post_tests()
-
+taskCheck = requests.get(f"http://localhost:8000/tasks/", params={'name': f'clean'})
+tasks = taskCheck.json()
+x = not tasks
+print(x)

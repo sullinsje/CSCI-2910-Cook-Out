@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import requests
+from task import TaskModel, TaskUpdate
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -21,6 +22,17 @@ async def on_ready():
 @bot.command(name="hello")
 async def hello(ctx):
     await ctx.send("Hello")
+
+@bot.command(name="h")
+async def hello(ctx):
+    command_list = ""
+    command_list += "!employees\n"
+    command_list += "!lookup <item name>\n"
+    command_list += "!assign <task name (in quotes), employee_id. If task exists, task will reassign to emp_id\n"
+    command_list += "!tasks <Optional: employee id>\n"
+    command_list += "!complete <task id>"
+
+    await ctx.send(command_list)
 
 @bot.command(name="employees")
 async def employees(ctx):
@@ -62,49 +74,88 @@ async def lookup(ctx, *, item_name: str):
     except requests.RequestException as e:
         await ctx.send(f"Failed to get Item(s):\n{e}")
 
-#--- Task Manager Commands---
+# --- Task Manager Commands ---
 @bot.command(name="assign")
 async def assign_task(ctx, task_name: str, employee_id: int):
-    """Assign a new task to an employee. Usage: `!assign "Task Name" 1`"""
     try:
-        response = requests.post(
-            "http://localhost:8000/tasks/",
-            json={"name": task_name, "employee_id": employee_id}
-        )
-        response.raise_for_status()
-        await ctx.send(f" Task assigned to employee ID `{employee_id}`: *{task_name}*")
-    except requests.RequestException as e:
-        await ctx.send(f" Failed to assign task: `{e}`")
+        emp_response = requests.get(f"http://localhost:8000/employees/{employee_id}")
+        if emp_response.status_code != 200:
+            await ctx.send(f"❌ Employee ID {employee_id} not found.")
+            return
+
+        taskCheck = requests.get(f"http://localhost:8000/tasks/", params={'name': f'{task_name}'})
+        tasks = taskCheck.json()
+
+        if tasks:
+            task_id = tasks[0].get('id', 'Unknown')
+            task = TaskUpdate(employee_id=employee_id)
+            task_response = requests.patch(f"http://localhost:8000/tasks/{task_id}", task.model_dump_json(exclude_unset=True))
+            task_response.raise_for_status()
+
+            await ctx.send(f"✅ Task re-assigned: {task_name} to employee #{employee_id}")
+
+        else:
+            task = TaskModel(id=1, name=task_name, employee_id=employee_id)
+
+            task_response = requests.post(f"http://localhost:8000/tasks/", task.model_dump_json())
+            task_response.raise_for_status()
+
+            await ctx.send(f"✅ Task assigned: {task_name}")
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {str(e)}")
 
 @bot.command(name="tasks")
 async def list_tasks(ctx, employee_id: int = None):
-    """List all tasks or filter by employee. Usage: `!tasks` or `!tasks 1`"""
     try:
-        params = {"employee_id": employee_id} if employee_id else None
-        response = requests.get("http://localhost:8000/tasks/", params=params)
+        response = requests.get("http://localhost:8000/tasks/")
         response.raise_for_status()
         tasks = response.json()
+        if response.status_code != 200:
+            await ctx.send("⚠️ Task system is unavailable.")
+            return
 
-        if not tasks:
-            await ctx.send("No tasks found.")
+        tasks = response.json()
+        valid_tasks = []
+
+        for task in tasks:
+            emp_id = task.get("employee_id", "Unknown")
+            if emp_id is None or not isinstance(emp_id, int):
+                continue
+            if employee_id is None or emp_id == employee_id:
+                valid_tasks.append(task)
+
+        if not valid_tasks:
+            msg = f"No tasks found for employee {employee_id}" if employee_id else "No tasks available."
+            await ctx.send(msg)
         else:
-            task_list = "\n".join(
-                f"**ID:** {t['id']} | **Task:** {t['name']} | **Assigned to:** {t['employee_id']}"
-                for t in tasks
+            reply = "\n".join(
+                f"ID: {task['id']} | Task: {task['name']} | Employee: {task['employee_id']}"
+                for task in valid_tasks
             )
-            await ctx.send(f" **Tasks:**\n{task_list}")
-    except requests.RequestException as e:
-        await ctx.send(f" Failed to fetch tasks: `{e}`")
+            await ctx.send(f"**Tasks:**\n{reply}")
+
+    except Exception as e:
+        await ctx.send(f"❌ Error fetching tasks: {str(e)}")
 
 @bot.command(name="complete")
 async def complete_task(ctx, task_id: int):
-    """Mark a task as complete (deletes it). Usage: `!complete 1`"""
+    """Mark a task as completed by deleting it from the API backend"""
     try:
-        response = requests.delete(f"http://localhost:8000/tasks/{task_id}")
-        response.raise_for_status()
-        await ctx.send(f" Task ID `{task_id}` marked as complete.")
-    except requests.RequestException as e:
-        await ctx.send(f" Failed to complete task: `{e}`")
+        # First check if the task exists
+        check_response = requests.get(f"http://localhost:8000/tasks/{task_id}")
+        if check_response.status_code != 200:
+            await ctx.send(f"❌ Task ID {task_id} not found.")
+            return
+
+        # Proceed to delete the task
+        delete_response = requests.delete(f"http://localhost:8000/tasks/{task_id}")
+        if delete_response.status_code == 200:
+            task_data = check_response.json()
+            await ctx.send(f"✅ Completed: {task_data['name']} (ID: {task_id})")
+        else:
+            await ctx.send(f"⚠️ Failed to complete task {task_id}.")
+    except Exception as e:
+        await ctx.send(f"⚠️ Error: {str(e)}")
 
 TOKEN = ''
 bot.run(TOKEN)
