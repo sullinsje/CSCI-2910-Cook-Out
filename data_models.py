@@ -8,7 +8,7 @@ class Employee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    availability = Column(String)
+    availability = Column(String, default="08:00-17:00")
 
     def __repr__(self):
         return f"{self.id}\t{self.name}\t{self.availability}"
@@ -34,3 +34,4 @@ class Task(Base):
 
     def __repr__(self):
         return f"{self.id}\t{self.name}\t{self.employee_id}"
+
