@@ -254,7 +254,7 @@ async def set_availability(ctx, *args):
     name = " ".join(name_parts)
 
     try:
-        employees = requests.get(f"{API_URL}/employees/").json()
+        employees = requests.get(f"http://localhost:8000/employees/").json()
     except Exception:
         return await ctx.send("❌ Could not fetch employee list.")
 
@@ -263,7 +263,7 @@ async def set_availability(ctx, *args):
         return await ctx.send(f"❌ No employee named **{name}** found.")
 
     resp = requests.patch(
-        f"{API_URL}/employees/{emp['id']}",
+        f"http://localhost:8000/employees/{emp['id']}",
         json={"availability": timeslot}
     )
     if not resp.ok:
