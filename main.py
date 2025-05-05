@@ -167,7 +167,8 @@ def create_item(item: ItemModel):
         id=uniqueId, 
         name=item.name, 
         count=item.count,
-        sold_since_restock=item.sold_since_restock
+        sold_since_restock=item.sold_since_restock,
+        last_restock=item.last_restock
     )
     
     session.add(db_item)
@@ -195,6 +196,7 @@ async def update_item(id: int, item: ItemModel):
     db_item.name = item.name
     db_item.count = item.count
     db_item.sold_since_restock = item.sold_since_restock
+    db_item.last_restock = item.last_restock
 
     try:
         session.commit()

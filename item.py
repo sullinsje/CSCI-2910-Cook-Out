@@ -6,6 +6,7 @@ class ItemModel(BaseModel):
     name: str
     count: int
     sold_since_restock: int
+    last_restock: int
 
     class Config:
         orm_mode = True
@@ -15,3 +16,4 @@ class ItemUpdate(BaseModel):
     name: Optional[str] = None
     count: Optional[int] = None
     sold_since_restock: Optional[int] = None
+    last_restock: Optional[int] = None

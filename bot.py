@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import requests
 from task import TaskModel, TaskUpdate
+from item import ItemModel, ItemUpdate
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,11 +27,14 @@ async def hello(ctx):
 @bot.command(name="h")
 async def hello(ctx):
     command_list = ""
-    command_list += "!employees\n"
-    command_list += "!lookup <item name>\n"
-    command_list += "!assign <task name (in quotes), employee_id. If task exists, task will reassign to emp_id\n"
-    command_list += "!tasks <Optional: employee id>\n"
-    command_list += "!complete <task id>"
+    command_list += "`!employees`\tGets all employees\n"
+    command_list += "`!get_employee <employee_name>`\tGets one employees by name\n"
+    command_list += "`!lookup <item name>`\tLooks up an item\n"
+    command_list += "`!assign <task name (in quotes), employee_id>`\tCreates a task and assigns it to employee. If task exists, task will reassign to emp_id\n"
+    command_list += "`!tasks <Optional: employee id>`\tLists all tasks or task belonging to an employee\n"
+    command_list += "`!complete <task id>`\tMarks a task as complete and deletes it\n"
+    command_list += "`!budgeter <Optional: restock>`\tDetermines what items should be restocked. restock option stocks these items\n"
+
 
     await ctx.send(command_list)
 
@@ -51,6 +55,29 @@ async def employees(ctx):
     except requests.RequestException as e:
             await ctx.send(f"Failed to get employee(s):\n{e}")
 
+@bot.command(name="get_employee")
+async def lookup(ctx, *, employee_name: str):
+    reply = ""
+    try:
+        response = requests.get("http://localhost:8000/employees/", params={"name": employee_name})
+        response.raise_for_status()
+        emps = response.json()
+
+        if not emps:
+            await ctx.send(f"No `{employee_name}`(s) found")
+            return
+        else:
+            for emp in emps:
+                id = emp.get("id", "Unknown")
+                name = emp.get("name", "Unknown")
+                availability = emp.get("availability", "Unknown")
+                reply += f"- **{id}** | Name: `{name}` | Availability: `{availability}`\n"
+
+            await ctx.send(reply)
+                
+    except requests.RequestException as e:
+        await ctx.send(f"Failed to get Item(s):\n{e}")
+
 @bot.command(name="lookup")
 async def lookup(ctx, *, item_name: str):
     reply = ""
@@ -67,7 +94,8 @@ async def lookup(ctx, *, item_name: str):
                 name = item.get("name", "Unknown")
                 count = item.get("count", "Unknown")
                 sold = item.get("sold_since_restock", "Unknown")
-                reply += f"- **{name}** | In Stock: `{count}` | Sold Since Restock: `{sold}`\n"
+                last_restock = item.get("last_restock", "Unknown")
+                reply += f"- **{name}** | In Stock: `{count}` | Sold Since Restock: `{sold}` | Last Restock: `{last_restock} days ago`\n"
 
             await ctx.send(reply)
                 
@@ -156,6 +184,62 @@ async def complete_task(ctx, task_id: int):
             await ctx.send(f"⚠️ Failed to complete task {task_id}.")
     except Exception as e:
         await ctx.send(f"⚠️ Error: {str(e)}")
+
+def restock(count, sold_since_restock, last_restock):
+    if last_restock == 0:
+        rate = sold_since_restock
+    else:
+        rate = sold_since_restock / last_restock
+
+    demand = rate * 14 #how often restocks are performed
+    amount_to_restock = int(demand - count)
+
+    if amount_to_restock < 0:
+        amount_to_restock = 0
+    
+    return amount_to_restock
+
+@bot.command(name="budgeter")
+async def budgeter(ctx, option: str = None):
+    reply = ""
+    try:
+        response = requests.get("http://localhost:8000/items/")
+        response.raise_for_status()
+        items = response.json()
+
+        if not items:
+            await ctx.send(f"No item(s) found")
+            return
+        else:
+            for item in items:
+                id = item.get("id", "Unknown")
+                name = item.get("name", "Unknown")
+                count = item.get("count", "Unknown")
+                sold_since_restock = item.get("sold_since_restock", "Unknown")
+                last_restock = item.get("last_restock", "Unknown")
+
+                amount_to_restock = restock(count, sold_since_restock, last_restock)
+
+                if amount_to_restock > 0:
+                    reply += f"- **{name}** | Amount to restock: `{amount_to_restock}`\n"
+
+                    if option is not None and option == "restock":
+                        u_item = ItemUpdate(count=count + amount_to_restock, sold_since_restock=0, last_restock=0)
+                        x = requests.patch(f"http://localhost:8000/items/{id}", u_item.model_dump_json(exclude_unset=True))
+                        x.raise_for_status()
+            if option is not None and option == "restock":
+                reply += "Restocked items..."
+            
+                
+
+        if reply == "":
+            await ctx.send("Nothing to restock currently.")
+        else:
+            await ctx.send(reply)
+                
+    except requests.RequestException as e:
+        await ctx.send(f"Failed to get Item(s):\n{e}")
+
 
 TOKEN = ''
 bot.run(TOKEN)

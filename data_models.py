@@ -20,6 +20,7 @@ class Item(Base):
     name = Column(String, index=True)
     count = Column(Integer)
     sold_since_restock = Column(Integer)
+    last_restock = Column(Integer)
 
     def __repr__(self):
         return f"{self.id}\t{self.name}\t{self.count}\t{self.sold_since_restock}"
