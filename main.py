@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from employee import EmployeeModel, EmployeeUpdate
+from schedule import ScheduleModel
 from item import ItemModel, ItemUpdate
 from task import TaskModel, TaskUpdate
 from data_models import Base, Employee, Item, Task
