@@ -350,11 +350,11 @@ async def patch_employee(id: int, updates: TaskUpdate):
 #region Schedule endpoints
 
 @app.get("/schedule/", response_model=List[ScheduleModel])
-def get_schedule(db: Session = Depends(get_db)):
+def get_schedule():
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     schedule: List[ScheduleModel] = []
 
-    employees = db.query(Employee).all()
+    employees = session.query(Employee).all()
     for emp in employees:
         # clamp_availability returns a tuple ("HH:MM", "HH:MM")
         start, end = clamp_availability(emp.availability)
