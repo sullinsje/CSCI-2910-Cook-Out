@@ -34,6 +34,9 @@ async def hello(ctx):
     command_list += "`!tasks <Optional: employee id>`\tLists all tasks or task belonging to an employee\n"
     command_list += "`!complete <task id>`\tMarks a task as complete and deletes it\n"
     command_list += "`!budgeter <Optional: restock>`\tDetermines what items should be restocked. restock option stocks these items\n"
+    command_list += "`!set_availability <employee_name, HH:MM-HH:MM>`\tChanges available working hours for an employee\n"
+    command_list += "`!schedule`\tShows Mon-Fri schedule for all employees\n"
+    command_list += "`!schedule <day>`\tShows schedule for a certain day of the week. (e.g. Monday)\n"
 
 
     await ctx.send(command_list)
@@ -241,5 +244,32 @@ async def budgeter(ctx, option: str = None):
         await ctx.send(f"Failed to get Item(s):\n{e}")
 
 
+@bot.command(name="set_availability")
+async def set_availability(ctx, *args):
+    
+    if len(args) < 2:
+        return await ctx.send("❌ Usage: `!set_availability <Employee Name> HH:MM-HH:MM`")
+
+    *name_parts, timeslot = args
+    name = " ".join(name_parts)
+
+    try:
+        employees = requests.get(f"{API_URL}/employees/").json()
+    except Exception:
+        return await ctx.send("❌ Could not fetch employee list.")
+
+    emp = next((e for e in employees if e["name"].lower() == name.lower()), None)
+    if not emp:
+        return await ctx.send(f"❌ No employee named **{name}** found.")
+
+    resp = requests.patch(
+        f"{API_URL}/employees/{emp['id']}",
+        json={"availability": timeslot}
+    )
+    if not resp.ok:
+        return await ctx.send("❌ Failed to update availability.")
+
+    await ctx.send(f"✅ Availability for **{emp['name']}** set to {timeslot}")
+    
 TOKEN = ''
 bot.run(TOKEN)
