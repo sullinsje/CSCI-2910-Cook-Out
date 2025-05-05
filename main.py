@@ -346,3 +346,40 @@ async def patch_employee(id: int, updates: TaskUpdate):
     return db_task
 
 #endregion
+    
+#region Schedule endpoints
+
+@app.get("/schedule/", response_model=List[ScheduleModel])
+def get_schedule(db: Session = Depends(get_db)):
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    schedule: List[ScheduleModel] = []
+
+    employees = db.query(Employee).all()
+    for emp in employees:
+        # clamp_availability returns a tuple ("HH:MM", "HH:MM")
+        start, end = clamp_availability(emp.availability)
+        for day in days:
+            schedule.append(
+                ScheduleModel(
+                    day=day,
+                    employee_id=emp.id,
+                    name=emp.name,
+                    start_time=start,
+                    end_time=end
+                )
+            )
+    return schedule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
