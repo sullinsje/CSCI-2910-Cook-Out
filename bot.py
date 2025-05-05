@@ -3,6 +3,7 @@ from discord.ext import commands
 import requests
 from task import TaskModel, TaskUpdate
 from item import ItemModel, ItemUpdate
+from employee import EmployeeUpdate
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -253,17 +254,19 @@ async def set_availability(ctx, *, rest: str):
         return await ctx.send("❌ Usage: `!set_availability <Employee Name> HH:MM-HH:MM`")
 
     try:
-        employees = requests.get("http://localhost:8000/employees/").json()
+        response = requests.get("http://localhost:8000/employees/", params={"name": name})
+        response.raise_for_status()
+        employees = response.json()
     except Exception:
-
         return await ctx.send("❌ Could not fetch employee list.")
     emp = next((e for e in employees if e["name"].lower() == name.lower()), None)
     if not emp:
         return await ctx.send(f"❌ No employee named **{name}** found.")
 
+    u_emp = EmployeeUpdate(availability=timeslot)
     resp = requests.patch(
-        f"http://localhost:8000/employees/{emp['id']}",
-        json={"availability": timeslot}
+        f"http://localhost:8000/employees/{emp.get('id', 'Unknown')}",
+        u_emp.model_dump_json(exclude_unset=True)
     )
     if not resp.ok:
         return await ctx.send("❌ Failed to update availability.")
