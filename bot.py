@@ -270,6 +270,38 @@ async def set_availability(ctx, *, rest: str):
 
     await ctx.send(f"✅ Availability for **{emp['name']}** set to {timeslot}")
 
-    
+@bot.command(name="schedule")
+async def schedule(ctx, day: str = None):
+
+    try:
+        resp = requests.get("http://localhost:8000/schedule/")
+        resp.raise_for_status()
+        entries = resp.json()  # list of {day, employee_id, name, start_time, end_time}
+    except requests.RequestException as e:
+        return await ctx.send(f"❌ Could not fetch schedule: {e}")
+
+    week_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    if day:
+        day_cap = day.capitalize()
+        if day_cap not in week_days:
+            return await ctx.send(f"❌ Invalid day. Choose one of: {', '.join(week_days)}")
+        week_days = [day_cap]
+
+
+    from collections import defaultdict
+    by_day = defaultdict(list)
+    for e in entries:
+        if e["day"] in week_days:
+            by_day[e["day"]].append(f"{e['name']} {e['start_time']}–{e['end_time']}")
+
+    lines = []
+    for d in week_days:
+        slots = by_day.get(d)
+        if slots:
+            lines.append(f"**{d}**: " + ", ".join(slots))
+        else:
+            lines.append(f"**{d}**: No one scheduled")
+    await ctx.send("\n".join(lines))
+
 TOKEN = ''
 bot.run(TOKEN)
