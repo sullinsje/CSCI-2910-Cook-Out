@@ -245,19 +245,18 @@ async def budgeter(ctx, option: str = None):
 
 
 @bot.command(name="set_availability")
-async def set_availability(ctx, *args):
-    
-    if len(args) < 2:
+async def set_availability(ctx, *, rest: str):
+ 
+    try:
+        name, timeslot = rest.rsplit(" ", 1)
+    except ValueError:
         return await ctx.send("❌ Usage: `!set_availability <Employee Name> HH:MM-HH:MM`")
 
-    *name_parts, timeslot = args
-    name = " ".join(name_parts)
-
     try:
-        employees = requests.get(f"http://localhost:8000/employees/").json()
+        employees = requests.get("http://localhost:8000/employees/").json()
     except Exception:
-        return await ctx.send("❌ Could not fetch employee list.")
 
+        return await ctx.send("❌ Could not fetch employee list.")
     emp = next((e for e in employees if e["name"].lower() == name.lower()), None)
     if not emp:
         return await ctx.send(f"❌ No employee named **{name}** found.")
@@ -270,6 +269,7 @@ async def set_availability(ctx, *args):
         return await ctx.send("❌ Failed to update availability.")
 
     await ctx.send(f"✅ Availability for **{emp['name']}** set to {timeslot}")
+
     
 TOKEN = ''
 bot.run(TOKEN)
