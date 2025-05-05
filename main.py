@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from employee import EmployeeModel, EmployeeUpdate
 from schedule import ScheduleModel
 from schedule_util import clamp_availability
